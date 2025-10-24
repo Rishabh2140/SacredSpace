@@ -144,6 +144,8 @@ Example gallery (relative paths):
 
 ![UserDashboard](/frontend/userdashboard.png)
 
+![AdminDashboard](/frontend/administrator-dasboard.png)
+
 ![Managespace](/frontend/managespaceadmin.png)
 
 ---
