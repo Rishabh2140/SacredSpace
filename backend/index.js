@@ -1,3 +1,4 @@
+// index.js
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -37,21 +38,16 @@ const connectDB = async () => {
 // Connect to database
 connectDB();
 
-// Routes
-app.use("/api/auth", require("./routes/auth"));
-app.use("/api/users", require("./routes/users"));
-app.use("/api/pandals", require("./routes/pandals"));
-app.use("/api/bookings", require("./routes/bookings"));
-app.use("/api/donations", require("./routes/donations"));
-app.use("/api/ratings", require("./routes/ratings"));
-app.use("/api/dashboard", require("./routes/dashboard"));
-app.use("/api/profiles", require("./routes/profiles"));
-
+// --------------------
+// Routes for Users only
+// --------------------
+app.use("/api/v1/users", require("./routes/userRoutes"));
+app.use("/api/v1/spaces", require("./routes/spaceRoutes"));
 // Health check endpoint
-app.get("/api/health", (req, res) => {
+app.get("/api/v1/health", (req, res) => {
   res.json({
     success: true,
-    message: "Virtual Pandal API is running",
+    message: "SacredSpace API (Users only) is running",
     timestamp: new Date().toISOString(),
   });
 });

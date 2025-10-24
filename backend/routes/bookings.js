@@ -1,77 +1,57 @@
 const express = require("express")
 const Booking = require("../models/Booking")
-const Pandal = require("../models/Pandal")
+const SacredSpace = require("../models/SacredSpace")
 const mongoose = require("mongoose") // Import mongoose
-const auth = require("../middleware/auth")
+const {auth} = require("../middleware/auth")
 
 const router = express.Router()
 
 // Create a booking
 router.post("/", auth, async (req, res) => {
   try {
-    const { pandalId, eventId, bookingDate, numberOfPeople, specialRequests } = req.body
+    const { spaceId, bookingDate, specialRequests } = req.body
 
-    if (!pandalId || !bookingDate) {
-      return res.status(400).json({
-        success: false,
-        message: "Pandal ID and booking date are required",
-      })
+    if (!spaceId || !bookingDate) {
+      return res.status(400).json({ success: false, message: "Space ID and booking date are required" })
     }
 
-    // Check if pandal exists
-    const pandal = await Pandal.findById(pandalId)
-    if (!pandal) {
-      return res.status(404).json({
-        success: false,
-        message: "Pandal not found",
-      })
-    }
+    const space = await SacredSpace.findById(spaceId)
+    if (!space) return res.status(404).json({ success: false, message: "Space not found" })
 
-    // Check if booking date is in the future
     const bookingDateTime = new Date(bookingDate)
     if (bookingDateTime <= new Date()) {
-      return res.status(400).json({
-        success: false,
-        message: "Booking date must be in the future",
-      })
+      return res.status(400).json({ success: false, message: "Booking date must be in the future" })
     }
+
+    const provider =
+      space.administrator || (Array.isArray(space.samiti) && space.samiti.length > 0 ? space.samiti[0] : null)
 
     const booking = new Booking({
       client: req.user.userId,
-      serviceProvider: pandal.samiti, // Assuming samiti is the service provider
-      serviceType: "pandal",
+      serviceProvider: provider || undefined,
+      serviceType: "space",
+      space: space._id,
       details: {
-        title: `Visit to ${pandal.name}`,
+        title: `Visit to ${space.name}`,
         description: specialRequests || "General visit",
         eventDate: bookingDateTime,
-        duration: 2, // Default 2 hours
-        location: pandal.location,
+        duration: 2,
+        location: space.location,
       },
-      pricing: {
-        amount: 0, // Free visit, can be updated later
-        currency: "INR",
-      },
+      pricing: { amount: 0, currency: "INR" },
       status: "pending",
     })
 
     await booking.save()
 
-    // Populate the booking with service provider and client details
     const populatedBooking = await Booking.findById(booking._id)
-      .populate("serviceProvider", "name email")
-      .populate("client", "name email")
+      .populate("serviceProvider", "fullName email")
+      .populate("client", "fullName email")
 
-    res.status(201).json({
-      success: true,
-      data: populatedBooking,
-      message: "Booking created successfully",
-    })
+    res.status(201).json({ success: true, data: populatedBooking, message: "Booking created successfully" })
   } catch (error) {
     console.error("Create booking error:", error)
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    })
+    res.status(500).json({ success: false, message: "Server error" })
   }
 })
 
@@ -86,11 +66,11 @@ router.get("/user", auth, async (req, res) => {
     }
 
     const bookings = await Booking.find(query)
-      .populate("serviceProvider", "name email")
-      .populate("client", "name email")
+      .populate("serviceProvider", "fullName email")
+      .populate("client", "fullName email")
       .sort({ "details.eventDate": -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
+      .limit(Number(limit))
+      .skip((Number(page) - 1) * Number(limit))
 
     const total = await Booking.countDocuments(query)
 
@@ -99,44 +79,30 @@ router.get("/user", auth, async (req, res) => {
       data: {
         bookings,
         pagination: {
-          page: Number.parseInt(page),
-          limit: Number.parseInt(limit),
+          page: Number(page),
+          limit: Number(limit),
           total,
-          pages: Math.ceil(total / limit),
+          pages: Math.ceil(total / Number(limit)),
         },
       },
     })
   } catch (error) {
     console.error("Get user bookings error:", error)
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    })
+    res.status(500).json({ success: false, message: "Server error" })
   }
 })
 
-// Get bookings for a pandal (for pandal owners/admins)
-router.get("/pandal/:pandalId", auth, async (req, res) => {
+// Get bookings for a space
+router.get("/space/:spaceId", auth, async (req, res) => {
   try {
-    const { pandalId } = req.params
+    const { spaceId } = req.params
     const { page = 1, limit = 10, status, date } = req.query
 
-    // Check if user has permission to view pandal bookings
-    const pandal = await Pandal.findById(pandalId)
-    if (!pandal) {
-      return res.status(404).json({
-        success: false,
-        message: "Pandal not found",
-      })
-    }
+    const space = await SacredSpace.findById(spaceId)
+    if (!space) return res.status(404).json({ success: false, message: "Space not found" })
 
-    // For now, allow any authenticated user to view bookings
-    // In production, you'd check if user is the pandal owner or admin
-
-    const query = { serviceProvider: pandalId }
-    if (status && status !== "all") {
-      query.status = status
-    }
+    const query = { space: spaceId }
+    if (status && status !== "all") query.status = status
     if (date) {
       const startDate = new Date(date)
       const endDate = new Date(date)
@@ -145,10 +111,10 @@ router.get("/pandal/:pandalId", auth, async (req, res) => {
     }
 
     const bookings = await Booking.find(query)
-      .populate("client", "name email")
+      .populate("client", "fullName email")
       .sort({ "details.eventDate": -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
+      .limit(Number(limit))
+      .skip((Number(page) - 1) * Number(limit))
 
     const total = await Booking.countDocuments(query)
 
@@ -156,20 +122,12 @@ router.get("/pandal/:pandalId", auth, async (req, res) => {
       success: true,
       data: {
         bookings,
-        pagination: {
-          page: Number.parseInt(page),
-          limit: Number.parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit),
-        },
+        pagination: { page: Number(page), limit: Number(limit), total, pages: Math.ceil(total / Number(limit)) },
       },
     })
   } catch (error) {
-    console.error("Get pandal bookings error:", error)
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    })
+    console.error("Get space bookings error:", error)
+    res.status(500).json({ success: false, message: "Server error" })
   }
 })
 
@@ -207,8 +165,8 @@ router.put("/:bookingId/status", auth, async (req, res) => {
     await booking.save()
 
     const updatedBooking = await Booking.findById(bookingId)
-      .populate("serviceProvider", "name email")
-      .populate("client", "name email")
+      .populate("serviceProvider", "fullName email")
+      .populate("client", "fullName email")
 
     res.json({
       success: true,
@@ -270,14 +228,14 @@ router.delete("/:bookingId", auth, async (req, res) => {
   }
 })
 
-// Get booking statistics
+// Get booking statistics (by space or by client)
 router.get("/stats/summary", auth, async (req, res) => {
   try {
-    const { pandalId } = req.query
-
+    const { spaceId } = req.query
     const matchQuery = {}
-    if (pandalId) {
-      matchQuery.serviceProvider = new mongoose.Types.ObjectId(pandalId)
+
+    if (spaceId) {
+      matchQuery.space = new mongoose.Types.ObjectId(spaceId)
     } else {
       matchQuery.client = new mongoose.Types.ObjectId(req.user.userId)
     }
@@ -288,16 +246,9 @@ router.get("/stats/summary", auth, async (req, res) => {
         $group: {
           _id: null,
           totalBookings: { $sum: 1 },
-          confirmedBookings: {
-            $sum: { $cond: [{ $eq: ["$status", "confirmed"] }, 1, 0] },
-          },
-          cancelledBookings: {
-            $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] },
-          },
-          completedBookings: {
-            $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
-          },
-          totalPeople: { $sum: 1 }, // Count of bookings
+          confirmedBookings: { $sum: { $cond: [{ $eq: ["$status", "confirmed"] }, 1, 0] } },
+          cancelledBookings: { $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] } },
+          completedBookings: { $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] } },
         },
       },
     ])
@@ -307,19 +258,12 @@ router.get("/stats/summary", auth, async (req, res) => {
       confirmedBookings: 0,
       cancelledBookings: 0,
       completedBookings: 0,
-      totalPeople: 0,
     }
 
-    res.json({
-      success: true,
-      data: result,
-    })
+    res.json({ success: true, data: result })
   } catch (error) {
     console.error("Get booking stats error:", error)
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    })
+    res.status(500).json({ success: false, message: "Server error" })
   }
 })
 

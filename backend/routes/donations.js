@@ -1,18 +1,18 @@
 const express = require("express")
 const router = express.Router()
 const Donation = require("../models/Donation")
-const Pandal = require("../models/Pandal")
+const SacredSpace = require("../models/SacredSpace")
 const auth = require("../middleware/auth")
 
 // Create a new donation
 router.post("/", async (req, res) => {
   try {
-    const { pandalId, amount, donorInfo } = req.body
+    const { spaceId, amount, donorInfo } = req.body
 
-    // Validate pandal exists
-    const pandal = await Pandal.findById(pandalId)
-    if (!pandal) {
-      return res.status(404).json({ message: "Pandal not found" })
+    // Validate space exists
+    const space = await SacredSpace.findById(spaceId)
+    if (!space) {
+      return res.status(404).json({ message: "Space not found" })
     }
 
     // Calculate platform fee (5%)
@@ -20,7 +20,7 @@ router.post("/", async (req, res) => {
     const totalAmount = amount + platformFee
 
     const donation = new Donation({
-      pandal: pandalId,
+      space: spaceId,
       amount,
       platformFee,
       totalAmount,
@@ -30,8 +30,6 @@ router.post("/", async (req, res) => {
 
     await donation.save()
 
-    // In a real implementation, integrate with payment gateway
-    // For now, we'll simulate a payment URL
     const paymentUrl = `https://payment-gateway.com/pay?amount=${totalAmount}&ref=${donation._id}`
 
     res.status(201).json({
@@ -45,16 +43,16 @@ router.post("/", async (req, res) => {
   }
 })
 
-// Get donations for a pandal
-router.get("/pandal/:pandalId", async (req, res) => {
+// Get donations for a space
+router.get("/space/:spaceId", async (req, res) => {
   try {
-    const { pandalId } = req.params
+    const { spaceId } = req.params
 
     const donations = await Donation.find({
-      pandal: pandalId,
+      space: spaceId,
       status: "completed",
     })
-      .select("-donorInfo.email -donorInfo.phone") // Hide sensitive info
+      .select("-donorInfo.email -donorInfo.phone")
       .sort({ createdAt: -1 })
 
     const totalRaised = donations.reduce((sum, donation) => sum + donation.amount, 0)
