@@ -4,6 +4,7 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  base: './', // fixes asset paths on Netlify
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
     alias: {
@@ -50,13 +51,10 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
-    outDir: 'build',
+    outDir: 'dist', // Netlify standard
   },
   server: {
     port: 3000,
     open: true,
-    allowedHosts: [
-      'untributarily-subemarginated-donnell.ngrok-free.dev', // ✅ add your ngrok domain here
-    ],
   },
 });
