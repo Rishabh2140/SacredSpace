@@ -4,6 +4,8 @@
 
 *Connecting souls worldwide through digital devotion.*
 
+**Live demo (under development):** [https://sacredspace01.netlify.app/](https://sacredspace01.netlify.app/)
+
 ---
 
 ## Executive Summary
@@ -164,6 +166,8 @@ Example gallery (relative paths):
 
 ## Getting Started (dev)
 
+**Live demo (under development):** [https://sacredspace01.netlify.app/](https://sacredspace01.netlify.app/)
+
 1. `git clone https://github.com/Rishabh2140/sacredspace.git`
 2. `cd sacredspace && npm install`
 3. Add environment variables: same as `.env.example`
@@ -173,4 +177,10 @@ Example gallery (relative paths):
 
 ---
 
+## Deployment
 
+**Netlify (development):** [https://sacredspace01.netlify.app/](https://sacredspace01.netlify.app/) (under development)
+
+---
+
+=
